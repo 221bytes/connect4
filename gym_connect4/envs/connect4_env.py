@@ -12,8 +12,9 @@ class Connect4Env(gym.Env):
     def __init__(self):
         self.state = np.zeros([6,7])
         self.viewer = None
-        self.difficulty = 2
+        self.difficulty = 3
         self.action_space = spaces.Discrete(7)
+        self.reward = 0
 
         self.seed()
 
@@ -21,7 +22,8 @@ class Connect4Env(gym.Env):
         for x in range(len(self.state)):
             if self.state[x, action] == 0:
                 self.state[x, action] = color
-                break
+                return 0.0
+        return -10.0
 
     def checkWin(self, player):
         board = self.state
@@ -56,15 +58,29 @@ class Connect4Env(gym.Env):
 
     def step(self, action, color):
         assert self.action_space.contains(action), "%r (%s) invalid"%(action, type(action))
-        self.setchecker(action, color)
-        print("human", self.checkWin(color))
+        done = False
+        self.reward += self.setchecker(action, color)
+        if self.checkWin(color):
+            self.reward = 10.0
+            done = True
+            return np.array(self.state), self.reward, done, {}
+
+            # print("human", self.checkWin(color))
         m = Minimax(self.state)
         best_move, value = m.bestMove(self.difficulty, self.state, 2)
-        print(best_move, value)
         self.setchecker(best_move, 2)
-        print("bot", self.checkWin(2))
+        # self.render()
+        # sec = input('Let us wait for user input. Let me know how many seconds to sleep now.\n')
+        # self.setchecker(int(sec), 2)
 
-        return self.state, 0, self.checkWin(color), {}
+        if self.checkWin(2):
+            self.reward += -1.0
+            done = True
+            return np.array(self.state), self.reward, done, {}
+
+            # print("bot", self.checkWin(2))
+        return np.array(self.state), self.reward, done, {}
+
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -73,6 +89,7 @@ class Connect4Env(gym.Env):
 
     def reset(self):
         self.state = np.zeros([6,7])
+        self.reward = 0
         return self.state
 
     def render(self, mode='human'):
@@ -86,9 +103,9 @@ class Connect4Env(gym.Env):
                 circle = rendering.make_circle(20)
                 circle.add_attr( rendering.Transform(translation=(y*50 + 140, x*50 + 80)))
                 if self.state[x][y] == 1:
-                    circle.set_color(1, 0, 0)
+                    circle.set_color(0, 1, 0)
                 elif self.state[x][y] == 2:
-                    circle.set_color(1, 1, 0)
+                    circle.set_color(1, 0, 0)
                 else:
                     circle.set_color(0, 0, 0)
                 self.viewer.add_geom(circle)
@@ -118,6 +135,13 @@ class Minimax(object):
         """ Returns the best move (as a column number) and the associated alpha
             Calls search()
         """
+        # if np.random.rand() <=0.1:
+        #     choices = []
+        #     for col in range(7):
+        #         if self.isLegalMove(col, state):
+        #             choices.append(col)
+        #     return random.choices(choices), 1
+
         # determine opponent's color
         if curr_player == self.colors[0]:
             opp_player = self.colors[1]
@@ -131,7 +155,6 @@ class Minimax(object):
                 # make the move in column 'col' for curr_player
                 temp = self.makeMove(state, col, curr_player)
                 legal_moves[col] = -self.search(depth-1, temp, opp_player)
-        print ("legal moves", legal_moves)
         
         best_alpha = -99999999
         best_move = None
