@@ -62,13 +62,9 @@ sess.as_default()
 #     env.close()
 
 # -*- coding: utf-8 -*-
-import random
-import gym
-import numpy as np
-from collections import deque
-import tensorflow as tf
 
 EPISODES = 100000
+
 
 class DQNAgent:
     def __init__(self, state_size, action_size):
@@ -94,24 +90,26 @@ class DQNAgent:
         keras = tf.keras
         layers = keras.layers
         model = keras.Sequential()
-        # model.add(layers.Conv2D(32, kernel_size=(4, 4),
-        #                 activation='relu',
-        #                 input_shape=(6,7,1))) # connect 4 board
-        # # model.add(Conv2D(64, (3, 3), activation='relu'))
+        model.add(layers.Conv2D(32, kernel_size=(2, 2),
+                                activation='relu',
+                                input_shape=(6, 7, 1)))  # connect 4 board
+        # model.add(Conv2D(64, (3, 3), activation='relu'))
         # model.add(layers.MaxPooling2D(pool_size=(2, 2)))
-        # model.add(layers.Dropout(0.25))
-        # model.add(layers.Flatten())
-        # model.add(layers.Dense(128, activation='relu'))
-        # model.add(layers.Dropout(0.5))
-        # model.add(layers.Dense(7, # columns of the board
-        #                 activation='softmax'))
+        # model.add(layers.MaxPooling2D(pool_size=(2, 2)))
+        model.add(layers.Conv2D(32, (2, 2), activation='relu'))
+        model.add(layers.MaxPooling2D(pool_size=(2, 2)))
+        model.add(layers.Dropout(0.25))
+        model.add(layers.Flatten())
+        model.add(layers.Dense(128, activation='relu'))
+        model.add(layers.Dropout(0.5))
+        model.add(layers.Dense(7,  # columns of the board
+                               activation='softmax'))
 
+        # # hidden layer takes a pre-processed frame as input, and has 200 units
+        # model.add(layers.Dense(units=200,input_dim=6*7, activation='relu', kernel_initializer='glorot_uniform'))
 
-        # hidden layer takes a pre-processed frame as input, and has 200 units
-        model.add(layers.Dense(units=200,input_dim=6*7, activation='relu', kernel_initializer='glorot_uniform'))
-
-        # output layer
-        model.add(layers.Dense(units=7, activation='softmax', kernel_initializer='RandomNormal'))
+        # # output layer
+        # model.add(layers.Dense(units=7, activation='softmax', kernel_initializer='RandomNormal'))
 
         model.compile(loss='mse',
                       optimizer=tf.keras.optimizers.Adam(lr=self.learning_rate))
@@ -123,21 +121,24 @@ class DQNAgent:
         self.memory.append((state, action, reward, next_state, done))
 
     def act(self, state):
+        state = np.reshape(state, (1, 6, 7, 1))
         if np.random.rand() <= self.epsilon:
             return random.randrange(self.action_size)
-        act_values = self.model.predict([[state.flatten()]])
+        act_values = self.model.predict(state)
         return np.argmax(act_values[0])  # returns action
 
     def replay(self, batch_size):
         minibatch = random.sample(self.memory, batch_size)
         for state, action, reward, next_state, done in minibatch:
             target = reward
+            state = np.reshape(state, (1, 6, 7, 1))
+
             if not done:
                 target = (reward + self.gamma *
-                          np.amax(self.model.predict([[next_state.flatten()]])[0]))
-            target_f = self.model.predict([[state.flatten()]])
+                          np.amax(self.model.predict(state)[0]))
+            target_f = self.model.predict(state)
             target_f[0][action] = target
-            self.model.fit([[state.flatten()]], target_f, epochs=1, verbose=0)
+            self.model.fit(state, target_f, epochs=1, verbose=0)
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
         self.memory.clear()
@@ -152,35 +153,57 @@ class DQNAgent:
 if __name__ == "__main__":
     env = gym.make('connect4-v0')
     # env = gym.make('CartPole-v1')
-    state_size = [6,7]# env.observation_space.shape[0]
-    action_size = 7 #env.action_space.n
-    agent = DQNAgent(state_size, action_size)
-    agent.load("./save/connect4-dqn.h5")
-    # agent.load("./save/cartpole-dqn.h5")
+    state_size = [6, 7]  # env.observation_space.shape[0]
+    action_size = 7  # env.action_space.n
+    agent_1 = DQNAgent(state_size, action_size)
+    agent_2 = DQNAgent(state_size, action_size)
+    agent_1.load("./save/agent_1_connect4-dqn.h5")
+    agent_2.load("./save/agent_2_connect4-dqn.h5")
 
     done = False
     batch_size = 32
 
     for e in range(EPISODES):
         state = env.reset()
-        state = np.reshape(state, (1,6,7,1))
-        for t in range(500):
+        state = np.reshape(state, (1, 6, 7, 1))
+        reward_1 = 0
+        reward_2 = 0
+        for t in range(21):
             env.render()
-            action = agent.act(state)
-            next_state, reward, done, _ = env.step(action,1)
-            # reward = reward if not done else -10
-            next_state = np.reshape(next_state, (1,6,7,1))
-            agent.remember(state, action, reward, next_state, done)
-            state = next_state
+
             sec = input('Let us wait for user input. Let me know how many seconds to sleep now.\n')
-              
-            if done:
-                print("episode: {}/{}, score: {}, e: {:.2}"
-                      .format(e, EPISODES, reward, agent.epsilon))
-                env.render()                
-                time.sleep(2)
+            action_1 = int(sec)
+            
+            # action_1 = agent_1.act(state)
+            next_state, reward_1, done_1, _ = env.step(action_1, 1, reward_1)
+            next_state = np.reshape(next_state, (1, 6, 7, 1))
+            # agent_1.remember(state, action_1, reward_1, next_state, done)
+
+            # state = next_state
+
+            sec = input('Let us wait for user input. Let me know how many seconds to sleep now.\n')
+            env.render()
+
+            action_2 = agent_2.act(state)
+            next_state, reward_2, done_2, _ = env.step(action_2, 2, reward_2)
+            next_state = np.reshape(next_state, (1, 6, 7, 1))
+            if done_1:
+                reward_2 += -10.0
+            agent_2.remember(state, action_2, reward_2, next_state, done)
+
+            state = next_state
+
+            # sec = input('Let us wait for user input. Let me know how many seconds to sleep now.\n')
+
+            if done_1 or done_2:
+                print("episode: {}/{}, score: agent_1 : {} agent_2 : {} , e1: {:.2} e2: {:.2}"
+                      .format(e, EPISODES, reward_1, reward_2, agent_1.epsilon, agent_2.epsilon))
+                # env.render()
+                # time.sleep(2)
                 break
-        if len(agent.memory) > batch_size:
-            agent.replay(batch_size)
+        if len(agent_1.memory) > batch_size:
+            agent_1.replay(batch_size)
+            agent_2.replay(batch_size)
         # if e % 10 == 0:
-        #     agent.save("./save/connect4-dqn.h5")
+        #     agent_1.save("./save/agent_1_connect4-dqn.h5")
+        #     agent_2.save("./save/agent_2_connect4-dqn.h5")

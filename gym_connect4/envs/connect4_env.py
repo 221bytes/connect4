@@ -14,7 +14,8 @@ class Connect4Env(gym.Env):
         self.viewer = None
         self.difficulty = 3
         self.action_space = spaces.Discrete(7)
-        self.reward = 0
+        self.reward_1 = 0
+        self.reward_2 = 0
 
         self.seed()
 
@@ -56,30 +57,45 @@ class Connect4Env(gym.Env):
 
         return False
 
-    def step(self, action, color):
+    # def step(self, action, color):
+    #     assert self.action_space.contains(action), "%r (%s) invalid"%(action, type(action))
+    #     done = False
+    #     self.reward += self.setchecker(action, color)
+    #     if self.checkWin(color):
+    #         self.reward = 10.0
+    #         done = True
+    #         return np.array(self.state), self.reward, done, {}
+
+    #         # print("human", self.checkWin(color))
+    #     m = Minimax(self.state)
+    #     best_move, value = m.bestMove(self.difficulty, self.state, 2)
+    #     self.setchecker(best_move, 2)
+    #     # self.render()
+    #     # sec = input('Let us wait for user input. Let me know how many seconds to sleep now.\n')
+    #     # self.setchecker(int(sec), 2)
+
+    #     if self.checkWin(2):
+    #         self.reward += -1.0
+    #         done = True
+    #         return np.array(self.state), self.reward, done, {}
+
+    #         # print("bot", self.checkWin(2))
+    #     return np.array(self.state), self.reward, done, {}
+
+    def step(self, action, color, reward):
         assert self.action_space.contains(action), "%r (%s) invalid"%(action, type(action))
         done = False
-        self.reward += self.setchecker(action, color)
+        reward += self.setchecker(action, color)
+        opponent = 1 if color == 2 else 2 
         if self.checkWin(color):
-            self.reward = 10.0
+            reward += 10.0
             done = True
-            return np.array(self.state), self.reward, done, {}
-
-            # print("human", self.checkWin(color))
-        m = Minimax(self.state)
-        best_move, value = m.bestMove(self.difficulty, self.state, 2)
-        self.setchecker(best_move, 2)
-        # self.render()
-        # sec = input('Let us wait for user input. Let me know how many seconds to sleep now.\n')
-        # self.setchecker(int(sec), 2)
-
-        if self.checkWin(2):
-            self.reward += -1.0
+        if self.checkWin(opponent):
+            reward -= 1
             done = True
-            return np.array(self.state), self.reward, done, {}
+        return np.array(self.state), reward, done, {}
 
-            # print("bot", self.checkWin(2))
-        return np.array(self.state), self.reward, done, {}
+
 
 
     def seed(self, seed=None):
@@ -89,7 +105,8 @@ class Connect4Env(gym.Env):
 
     def reset(self):
         self.state = np.zeros([6,7])
-        self.reward = 0
+        self.reward_1 = 0
+        self.reward_2 = 0
         return self.state
 
     def render(self, mode='human'):
