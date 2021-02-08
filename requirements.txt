@@ -28,7 +28,7 @@ grpcio==1.19.0
 gym==0.12.0
 -e git+git@github.com:221bytes/connect4.git@5a18eb9f2ac7affe10658c607aed293de5966327#egg=gym_connect4&subdirectory=gym_connect4
 h5py==2.9.0
-httplib2==0.9.2
+httplib2==0.19.0
 idna==2.6
 ipykernel==5.1.0
 ipython==7.3.0
